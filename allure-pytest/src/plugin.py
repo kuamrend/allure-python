@@ -10,13 +10,16 @@ from allure_pytest.utils import allure_labels
 from allure_pytest.helper import AllureTestHelper
 from allure_pytest.listener import AllureListener
 
+import os
+from logger.cafylog import CafyLog
+CAFY_REPO = os.getenv("GIT_REPO", None)
 
 def pytest_addoption(parser):
     parser.getgroup("reporting").addoption('--alluredir',
                                            action="store",
                                            dest="allure_report_dir",
                                            metavar="DIR",
-                                           default=None,
+                                           default="CAFY_REPO/work/archive",
                                            help="Generate Allure report in the specified directory (may not exist)")
 
     parser.getgroup("reporting").addoption('--clean-alluredir',
@@ -106,7 +109,13 @@ def cleanup_factory(plugin):
 
 
 def pytest_configure(config):
-    report_dir = config.option.allure_report_dir
+
+    if CAFY_REPO:
+        archive_name = 'allure'
+        ARCHIVE = os.path.join(CafyLog.work_dir, archive_name)
+        os.environ['ARCHIVE'] = ARCHIVE
+        config.option.allure_report_dir = ARCHIVE
+        report_dir = config.option.allure_report_dir
     clean = config.option.clean_alluredir
 
     test_helper = AllureTestHelper(config)
