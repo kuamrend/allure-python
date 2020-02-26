@@ -1,4 +1,6 @@
 import pytest
+import re
+import html
 import allure_commons
 from allure_commons.utils import escape_non_unicode_symbols
 from allure_commons.utils import now
@@ -187,11 +189,40 @@ class AllureListener(object):
             if self.config.option.attach_capture:
                 # Capture at teardown contains data from whole test (setup, call, teardown)
                 self.attach_data(report.caplog, "log", AttachmentType.TEXT, None)
-                self.attach_data(report.capstdout, "stdout", AttachmentType.TEXT, None)
+                stdout_contents = self._convert_to_html(report.capstdout)
+                self.attach_data(stdout_contents, "stdout", AttachmentType.HTML, None)
                 self.attach_data(report.capstderr, "stderr", AttachmentType.TEXT, None)
 
             uuid = self._cache.pop(item.nodeid)
             self.allure_logger.close_test(uuid)
+
+    def _convert_to_html(self, contents):
+        """
+        Converts log to HTML format. Adds different colors based on log prefix
+        """
+        ansi_escape = re.compile(r'\x1b[^m]*m')
+
+        result = "<html><body style=\"font-family:'Courier New', Courier, monospace;font-size:14px\">"
+        for raw_line in contents.splitlines():
+            line = ansi_escape.sub('', raw_line)
+            if line.startswith('-Warning'):
+                result += "<div style=\"color:orange;\">"
+            elif line.startswith('-Debug'):
+                result += "<div style=\"color:blue;\">"
+            elif line.startswith('-Error'):
+                result += "<div style=\"color:red;font-weight:bold\">"
+            elif line.startswith('-Liberr'):
+                result += "<div style=\"color:red;font-weight:bold\">"
+            elif line.startswith('-Fail'):
+                result += "<div style=\"color:red;font-weight:bold\">"
+            elif line.startswith('-Success'):
+                result += "<div style=\"color:green;\">"
+            else:
+                result += "<div>"
+            result += html.escape(line)
+            result += "</div>"
+            result += "</body></html>"
+        return result
 
     @allure_commons.hookimpl
     def attach_data(self, body, name, attachment_type, extension):
